@@ -122,3 +122,80 @@ func TestRandomSecretInRange(t *testing.T) {
 		}
 	}
 }
+
+func TestHintNotAvailableBeforeThreeWrong(t *testing.T) {
+	r := New(50, Easy)
+	r.Guess(25)
+	if _, _, ok := r.Hint(); ok {
+		t.Error("hint should not be available after 1 wrong guess")
+	}
+	r.Guess(25)
+	if _, _, ok := r.Hint(); ok {
+		t.Error("hint should not be available after 2 wrong guesses")
+	}
+}
+
+func TestHintAvailableAfterThreeWrong(t *testing.T) {
+	r := New(50, Easy)
+	r.Guess(25) // too low -> lo = 26
+	r.Guess(25) // too low -> lo = 26
+	r.Guess(75) // too high -> hi = 74
+	lo, hi, ok := r.Hint()
+	if !ok {
+		t.Fatal("hint should be available after 3 consecutive wrong guesses")
+	}
+	if lo != 26 || hi != 74 {
+		t.Errorf("Hint() = (%d,%d), want (26,74)", lo, hi)
+	}
+}
+
+func TestHintRangeNarrows(t *testing.T) {
+	r := New(50, Easy)
+	r.Guess(75) // too high -> hi = 74
+	r.Guess(25) // too low -> lo = 26
+	r.Guess(60) // too high -> hi = 59
+	lo, hi, ok := r.Hint()
+	if !ok {
+		t.Fatal("hint should be available")
+	}
+	if lo != 26 || hi != 59 {
+		t.Errorf("Hint() = (%d,%d), want (26,59)", lo, hi)
+	}
+}
+
+func TestHintDoesNotConsumeChance(t *testing.T) {
+	r := New(50, Medium)
+	r.Guess(25)
+	r.Guess(25)
+	r.Guess(25)
+	before := r.Remaining()
+	lo, hi, ok := r.Hint()
+	if !ok {
+		t.Fatal("hint should be available")
+	}
+	if lo != 26 || hi != 100 {
+		t.Errorf("Hint() = (%d,%d), want (26,100)", lo, hi)
+	}
+	if r.Remaining() != before {
+		t.Errorf("Remaining() = %d after Hint(), want %d", r.Remaining(), before)
+	}
+	if r.Attempts() != 3 {
+		t.Errorf("Attempts() = %d, want 3 (hint must not count as a guess)", r.Attempts())
+	}
+}
+
+func TestHintRangeContainsSecret(t *testing.T) {
+	// Hints derive only from prior guesses; the narrowed range must always
+	// bracket the secret without being told the secret directly.
+	r := New(50, Easy)
+	r.Guess(10) // too low -> lo = 11
+	r.Guess(90) // too high -> hi = 89
+	r.Guess(20) // too low -> lo = 21
+	lo, hi, ok := r.Hint()
+	if !ok {
+		t.Fatal("hint should be available")
+	}
+	if lo > 50 || hi < 50 {
+		t.Errorf("Hint range (%d,%d) does not contain the secret 50", lo, hi)
+	}
+}

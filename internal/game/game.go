@@ -1,6 +1,9 @@
 package game
 
-import "math/rand"
+import (
+	"math/rand"
+	"time"
+)
 
 type Difficulty int
 
@@ -8,6 +11,11 @@ const (
 	Easy Difficulty = iota
 	Medium
 	Hard
+)
+
+const (
+	Min = 1   // smallest possible secret/guess
+	Max = 100 // largest possible secret/guess
 )
 
 func (d Difficulty) Chances() int {
@@ -46,18 +54,21 @@ const (
 )
 
 type Round struct {
-	secret   int
-	chances  int
-	attempts int
-	won      bool
+	secret      int
+	chances     int
+	attempts    int
+	won         bool
+	wrongStreak int
+	lo, hi      int
+	start       time.Time
 }
 
 func New(secret int, d Difficulty) *Round {
-	return &Round{secret: secret, chances: d.Chances()}
+	return &Round{secret: secret, chances: d.Chances(), lo: Min, hi: Max, start: time.Now()}
 }
 
 func RandomSecret() int {
-	return rand.Intn(100) + 1
+	return rand.Intn(Max-Min+1) + Min
 }
 
 func (r *Round) Guess(n int) Result {
@@ -66,21 +77,39 @@ func (r *Round) Guess(n int) Result {
 	}
 
 	r.attempts++
+	r.wrongStreak++
 
 	switch {
 	case n == r.secret:
 		r.won = true
 		return Correct
 	case n > r.secret:
+		if n-1 < r.hi {
+			r.hi = n - 1
+		}
 		return TooHigh
 	default:
+		if n+1 > r.lo {
+			r.lo = n + 1
+		}
 		return TooLow
 	}
 }
 
-func (r *Round) Won() bool      { return r.won }
-func (r *Round) Over() bool     { return r.won || r.attempts >= r.chances }
-func (r *Round) Attempts() int  { return r.attempts }
-func (r *Round) Chances() int   { return r.chances }
-func (r *Round) Remaining() int { return r.chances - r.attempts }
-func (r *Round) Secret() int    { return r.secret }
+// Hint returns the narrowed possible range for the secret, derived only from
+// guesses made so far, once the player has had 3 consecutive wrong guesses.
+func (r *Round) Hint() (lo, hi int, ok bool) {
+	if r.wrongStreak < 3 {
+		return 0, 0, false
+	}
+
+	return r.lo, r.hi, true
+}
+
+func (r *Round) Won() bool              { return r.won }
+func (r *Round) Over() bool             { return r.won || r.attempts >= r.chances }
+func (r *Round) Attempts() int          { return r.attempts }
+func (r *Round) Chances() int           { return r.chances }
+func (r *Round) Remaining() int         { return r.chances - r.attempts }
+func (r *Round) Secret() int            { return r.secret }
+func (r *Round) Elapsed() time.Duration { return time.Since(r.start) }
