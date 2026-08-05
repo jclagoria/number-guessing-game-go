@@ -18,6 +18,22 @@ func TestDifficultyChances(t *testing.T) {
 	}
 }
 
+func TestDifficultyString(t *testing.T) {
+	cases := []struct {
+		d    Difficulty
+		want string
+	}{
+		{Easy, "Easy"},
+		{Medium, "Medium"},
+		{Hard, "Hard"},
+	}
+	for _, c := range cases {
+		if got := c.d.String(); got != c.want {
+			t.Errorf("%v String() = %q, want %q", c.d, got, c.want)
+		}
+	}
+}
+
 func TestGuessCorrect(t *testing.T) {
 	r := New(50, Easy)
 	if got := r.Guess(50); got != Correct {

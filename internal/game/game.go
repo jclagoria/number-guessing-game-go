@@ -23,6 +23,19 @@ func (d Difficulty) Chances() int {
 	}
 }
 
+func (d Difficulty) String() string {
+	switch d {
+	case Easy:
+		return "Easy"
+	case Medium:
+		return "Medium"
+	case Hard:
+		return "Hard"
+	default:
+		return "Unknwon"
+	}
+}
+
 type Result int
 
 const (
